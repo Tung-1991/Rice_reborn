@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="csrf-token" content="{{csrf}}">
+  <title>Rice Reborn · Binance Spot — Static Rule</title>
+  <link rel="stylesheet" href="/static/style.css"><script src="/static/app.js" defer></script>
+</head>
+<body data-demo="{{'true' if demo else 'false'}}">
+<div id="demo-banner" class="demo-banner" {% if not demo %}hidden{% endif %}>DEMO · Dữ liệu mô phỏng · REAL bị khóa · Không gọi Binance hoặc gửi Telegram</div>
+<main class="terminal">
+  <aside class="left-column">
+    <section class="account panel">
+      <div class="account-top"><div><div class="nav-heading">TỔNG TÀI SẢN / NAV <button id="refresh" title="Đọc lại tài khoản và giá Binance">↻ NAV</button></div><div id="nav-value" class="nav-value">—</div></div><div class="session"><div>SPOT · 24/7</div><strong id="account-status">CHỜ DỮ LIỆU</strong><small id="api-rights">CHỜ QUYỀN API</small></div></div>
+      <div class="account-id">BINANCE <span id="account-book">PAPER</span> · <span id="position-count">0 vị thế</span> · Tiền: <span id="free-cash">—</span> USDT</div>
+      <div class="account-stats"><strong>PNL: <span id="unrealized">—</span></strong><strong class="warn">PHÍ: <span id="fees-value">—</span></strong><button data-modal="history" title="Xem lịch sử PNL và phí">↗</button></div>
+    </section>
+    <section class="control panel">
+      <div class="control-row"><span>CẶP</span><select id="order-symbol" name="symbol" form="order-form" aria-label="Cặp giao dịch"><option>BTCUSDT</option></select></div>
+      <div class="control-row"><span>MODE</span><div class="mode-controls"><div class="segmented"><button id="mode-real">REAL</button><button id="mode-paper">PAPER</button></div><button id="bot-toggle" class="bot-off">BOT · OFF</button></div></div>
+      <div class="control-row"><span>TOOLS</span><div class="two-controls"><button data-modal="rules">⚙ RULE</button><button data-modal="connections">⛓ KẾT NỐI <span id="connection-dot"></span></button></div></div>
+      <div class="control-row"><span>E/M</span><div class="two-controls"><button id="entry-protect" title="PROTECT cho lượt mua tay mới">PROTECT · ON</button><button id="entry-e" title="E chỉ báo cho lượt mua tay mới">E · ON</button></div></div>
+    </section>
+    <section class="order panel">
+      <form id="order-form">
+        <div class="quote-box">
+          <div class="quote-heading"><strong id="market-symbol">BTC / USDT</strong><span id="day-change">—</span></div>
+          <div class="quote-price"><div><small>THẤP 1D</small><strong id="day-low">—</strong></div><div id="market-price">—</div><div><small>CAO 1D</small><strong id="day-high">—</strong></div></div>
+          <div class="quote-state"><span id="market-source">CHỜ GIÁ</span> · <span id="trade-lock">CHỜ QUYỀN API</span></div>
+          <div class="ticket-pnl"><div><strong class="positive">TP</strong><span id="ticket-tp">—</span></div><div><strong class="negative">SL</strong><span id="ticket-sl">—</span></div><div><strong class="warn">FEE</strong><span id="ticket-fee">—</span></div></div>
+          <div class="ticket-money"><strong>VỐN + PHÍ</strong><span id="order-notional">—</span></div>
+        </div>
+        <div class="order-action"><select name="type" aria-label="Loại lệnh"><option value="MARKET">MARKET</option><option value="LIMIT">LIMIT</option><option value="LOCAL_LIMIT">LIMIT KÍCH HOẠT</option></select><button type="submit" id="submit-order" class="primary">ĐẶT MUA</button><button type="button" data-modal="order-help" title="Giải thích phiếu lệnh">ⓘ</button></div>
+        <div class="manual-grid">
+          <label><span>KL · <span id="quantity-unit">BTC</span></span><div class="quantity-input"><input name="quantity" type="number" min="0" step="any" placeholder="AUTO" aria-label="Khối lượng"><button type="button" id="auto-quantity" title="Tính theo vốn và giới hạn cặp">↻</button></div></label>
+          <label><span>GIÁ LIMIT</span><input name="price" type="number" min="0" step="any" aria-label="Giá LIMIT" placeholder="THỊ TRƯỜNG"></label>
+          <label><span>TAKE PROFIT %</span><input name="take_profit" type="number" min="0" max="10000" step="any" aria-label="Take profit riêng" placeholder="RULE"></label>
+          <label><span>STOP LOSS %</span><input name="stop_loss" type="number" min="-99.99" max="0" step="any" aria-label="Stop loss riêng" placeholder="RULE"></label>
+        </div>
+        <p id="order-hint" class="form-hint">Lệnh REAL cần quyền Spot Trade.</p>
+      </form>
+    </section>
+    <div class="footer-brand">RICE REBORN <small id="version">{{version}}</small></div>
+    <div class="left-footer"><span id="telegram-status">TELEGRAM CHƯA CẤU HÌNH</span><button id="logout">Đăng xuất</button></div>
+  </aside>
+  <section class="right-column">
+    <header class="running-header"><h1>LỆNH ĐANG CHẠY <span id="running-count"></span></h1><button data-modal="legend" title="Chú thích bảng lệnh">ⓘ</button><button data-modal="info">▤ INFO</button><div class="header-actions"><button id="sell-selected" class="danger" disabled>BÁN ĐÃ CHỌN</button><button id="cancel-selected" disabled>HỦY LỆNH CHỜ</button><button data-modal="backtest">◫ BACKTEST</button><button data-modal="portfolio">▦ DANH MỤC</button><button data-modal="history">◷ LỊCH SỬ</button></div></header>
+    <section class="running panel">
+      <div class="book-tabs segmented"><button id="book-real">SPOT REAL</button><button id="book-paper">SPOT PAPER</button></div>
+      <div id="running-table" class="running-table" tabindex="0" aria-label="Bảng lệnh và vị thế"><div class="empty-state">Đang tải dữ liệu…</div></div>
+      <div class="table-footer"><span id="table-summary">—</span><span>USDT · <span id="book-label">PAPER</span> · Ctrl/Shift + click để chọn</span></div>
+    </section>
+    <section id="system-panel" class="system panel">
+      <header class="system-header"><h2>HỆ THỐNG ⓘ</h2><div class="segmented preview-tabs"><button data-preview="overview" class="active">TỔNG QUAN</button><button data-preview="order">LỆNH</button><button data-preview="system">HỆ THỐNG</button></div><div class="segmented log-tabs"><button data-info="preview" class="active">PREVIEW</button><button data-info="manual">Manual</button><button data-info="bot">Bot</button></div><button id="system-collapse" title="Thu gọn khối HỆ THỐNG">⌄</button></header>
+      <div id="preview-content" class="preview-content" data-view="overview">
+        <article id="order-preview" class="preview-card">
+          <div class="preview-heading"><strong id="preview-title">BTCUSDT · PAPER · BUY · MARKET</strong><span id="preview-status" class="badge">CHỜ DỮ LIỆU</span></div>
+          <div class="preview-metrics"><div><small>GIÁ TT</small><span id="preview-live">—</span></div><div><small>GIÁ VÀO</small><span id="preview-entry">—</span></div><div><small>KL</small><span id="preview-quantity">—</span></div><div><small>VỐN + PHÍ</small><span id="preview-cash">—</span></div><div><small>FEE</small><span id="preview-fee">—</span></div><div><small>LỆNH</small><span id="preview-route">—</span></div></div>
+          <div class="preview-levels"><div><strong class="positive">TP</strong><span id="preview-tp">—</span><small id="preview-tp-money">—</small></div><div><strong class="negative">SL</strong><span id="preview-sl">—</span><small id="preview-sl-money">—</small></div><div><strong>ATR14 · 1D</strong><span id="atr">—</span><small id="atr-pct">—</small></div><div class="wide"><strong id="protect-caption">PROTECT</strong><span id="preview-protect">—</span><small id="preview-protect-detail">—</small></div><div><strong>E · CHỈ BÁO</strong><span id="preview-e">—</span><small id="preview-e-detail">—</small></div></div>
+          <div id="market-note" class="preview-note">Chờ dữ liệu</div>
+        </article>
+        <article id="rule-preview" class="preview-card">
+          <div class="preview-heading"><strong>QUYẾT ĐỊNH HỆ THỐNG</strong><span id="bot-status" class="badge">BOT · OFF</span></div>
+          <div class="rule-phase"><strong>P1 · BTC</strong><div><span id="p1-value">—</span><span id="p1-mode"></span><small><span id="btc-context">—</span> · <span id="eth-context">—</span></small></div></div>
+          <div class="rule-phase phase-two"><div class="phase-heading"><strong>P2 · BUY / E</strong><span id="signal-mode"></span><button id="ema-bypass" title="Bỏ yêu cầu cắt một lần thử">BỎ</button></div><div class="phase-two-values"><strong id="p2-state">CHỜ DỮ LIỆU</strong><small id="p2-count">—</small><small id="p2-last">—</small><div>EMA BUY: <span id="ema-fast">—</span> / <span id="ema-slow">—</span></div><div>EMA E: <span id="ema-sell-fast">—</span> / <span id="ema-sell-slow">—</span> · RSI: <span id="rsi">—</span></div></div></div>
+          <div class="rule-phase phase-three"><strong>P3 · VỐN & KHÓA</strong><small id="p3-capital">—</small><div class="guard"><span>WHIPSAW <strong id="whipsaw">—</strong></span><button id="unlock-whipsaw">MỞ</button></div><div class="guard"><span>LỖ <strong id="loss-streak">—</strong></span><button id="unlock-loss">MỞ</button></div></div>
+          <div id="p2-reason" class="decision-reason">CHỜ QUYẾT ĐỊNH</div>
+        </article>
+      </div>
+      <div id="system-log" class="system-log" hidden></div>
+      <footer class="health"><strong>HEALTH</strong><span id="health-title">ĐANG KHỞI ĐỘNG</span><span id="health-time">—</span><button data-modal="health">ⓘ</button></footer>
+    </section>
+    <div class="terminal-footer"><span id="clock">—</span><span id="errors"></span></div>
+  </section>
+</main>
+<dialog id="modal"><header class="modal-header"><h2 id="modal-title"></h2><button id="modal-close" aria-label="Đóng">×</button></header><div id="modal-body"></div></dialog>
+<dialog id="confirm-modal" class="confirm-dialog"></dialog><div id="toast" role="status" hidden></div>
+</body></html>
