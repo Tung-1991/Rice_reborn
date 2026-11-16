@@ -198,15 +198,23 @@ def main():
     if args.action=='access-show':
         _,_,values=paths()
         mode=values.get('RICE_ACCESS_MODE') or 'direct'
-        print('Mode:',mode,'Host:',values.get('RICE_HOST','127.0.0.1'),'Port:',values.get('RICE_PORT','8080'))
-        print('Secure cookie:',values.get('RICE_COOKIE_SECURE','0'),'App allowlist:',values.get('RICE_ALLOWED_IPS') or 'EMPTY')
+        print('Truy cập:',{'direct':'IP trực tiếp','ssh':'SSH tunnel','https':'HTTPS'}.get(mode,mode))
+        print('Web trên VPS:',values.get('RICE_HOST','127.0.0.1')+':'+str(values.get('RICE_PORT') or 8080))
         if mode=='direct':
             print('UI: http://IP-PUBLIC-VPS:'+str(values.get('RICE_PORT') or 8080))
             print('Whitelist IP public nhà ở Cloud Firewall. IP đổi: cập nhật rule cloud; để app allowlist trống nếu chỉ quản lý tại cloud.')
             print('HTTP chưa mã hóa đường truyền. Script không tự sửa firewall.')
         elif mode=='ssh':
-            print('SSH tunnel: ssh -N -L 127.0.0.1:18080:127.0.0.1:'+str(values.get('RICE_PORT') or 8080)+' user@IP-VPS')
-            print('Tunnel URL: http://127.0.0.1:18080')
+            connection=os.environ.get('RICE_SSH_CONNECTION','').split()
+            host=connection[2] if len(connection)==4 else 'IP-VPS'
+            ssh_port=connection[3] if len(connection)==4 else '22'
+            if ':' in host: host='['+host+']'
+            login=os.environ.get('RICE_SSH_LOGIN') or 'user'
+            print('Trên máy WINDOWS, mở terminal và chạy:')
+            print('ssh -N -o ServerAliveInterval=30 -o ExitOnForwardFailure=yes -p '+ssh_port+
+                  ' -L 127.0.0.1:18080:127.0.0.1:'+str(values.get('RICE_PORT') or 8080)+' '+login+'@'+host)
+            print('Sau đó mở trình duyệt trên máy nhà: http://127.0.0.1:18080')
+            print('Giữ cửa sổ tunnel mở khi dùng web. Đóng tunnel thì Rice trên VPS vẫn chạy.')
         else: print('HTTPS proxy/chứng chỉ cấu hình riêng; backend chỉ nghe loopback.')
 
 

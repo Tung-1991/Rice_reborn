@@ -129,3 +129,20 @@ def test_direct_access_instructions_use_cloud_firewall(home,monkeypatch,capsys):
     main(); output=capsys.readouterr().out
     assert 'http://IP-PUBLIC-VPS:8080' in output and 'Cloud Firewall' in output
     assert 'SSH tunnel:' not in output and '18080' not in output
+
+
+@pytest.mark.parametrize('server,target',[
+    ('203.0.113.10','kaiser@203.0.113.10'),
+    ('2001:db8::10','kaiser@[2001:db8::10]'),
+])
+def test_ssh_access_instructions_use_operator_and_connection(home,monkeypatch,capsys,server,target):
+    import sys
+    from rice_reborn.maintenance import main
+    env=Environment(); env.save_access({'RICE_ACCESS_MODE':'ssh','RICE_HOST':'127.0.0.1','RICE_PORT':'9090'})
+    monkeypatch.setenv('RICE_SSH_CONNECTION',f'198.51.100.7 12345 {server} 2222')
+    monkeypatch.setenv('RICE_SSH_LOGIN','kaiser')
+    monkeypatch.setattr(sys,'argv',['maintenance','access-show'])
+    main(); output=capsys.readouterr().out
+    assert '-p 2222' in output and '127.0.0.1:18080:127.0.0.1:9090 '+target in output
+    assert 'WINDOWS' in output and 'http://127.0.0.1:18080' in output
+    assert 'Secure cookie:' not in output and 'IP-PUBLIC-VPS' not in output

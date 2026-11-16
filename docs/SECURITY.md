@@ -2,7 +2,7 @@
 
 ## Whitelist IP và mã hóa
 
-Cấu hình sử dụng đã chốt: mode direct, mở UI bằng IP public VPS:8080; whitelist IP public nhà tại Cloud Firewall. Khi IP nhà đổi, người vận hành cập nhật rule cloud. RICE_ALLOWED_IPS để trống để không phải cập nhật IP hai nơi. Không dùng tunnel trong luồng vận hành này; script không tự thay firewall.
+Cài mới mặc định dùng SSH tunnel: backend chỉ nghe `127.0.0.1:8080`, máy nhà mở `http://127.0.0.1:18080` sau khi chạy lệnh tunnel được launcher in ra. Cloud Firewall chỉ mở cổng SSH cho IP public nhà, không mở public 8080. Khi IP nhà đổi, người vận hành cập nhật rule cloud. Script không tự thay firewall. Cập nhật giữ nguyên mode đã lưu; chọn menu **4 → 4 → 1** hoặc `rice-rebornctl access-set ssh` để chuyển bản cũ sang tunnel.
 
 Whitelist ở security group/firewall VPS giới hạn nguồn kết nối. IP public nhà thường đại diện cả mạng nhà sau NAT, không định danh riêng một máy. Dùng đúng IP public/32 và cập nhật khi ISP đổi IP; kiểm tra rule IPv4/IPv6 và các cổng đang lắng nghe.
 
@@ -17,7 +17,7 @@ Binance dùng HTTPS riêng ở chiều outbound. Whitelist UI không tự giới
 
 ## Ba mode trong launcher
 
-- **direct**: HTTP, bind 0.0.0.0, mặc định port 8080. Giữ cách truy cập IP:port đã yêu cầu; người vận hành quản lý firewall. Không coi HTTP là đường truyền bí mật.
+- **direct**: HTTP, bind 0.0.0.0, mặc định port 8080; người vận hành tự mở cổng web và whitelist IP ở firewall. Không coi HTTP là đường truyền bí mật.
 - **ssh**: bind 127.0.0.1, HTTP ở hai đầu loopback; SSH mã hóa đoạn Internet. Không cần domain hoặc mở public 8080.
 - **https**: bind 127.0.0.1, bật Secure cookie; reverse proxy TLS/chứng chỉ cấu hình riêng. Whitelist cổng public của proxy và chặn backend từ Internet.
 

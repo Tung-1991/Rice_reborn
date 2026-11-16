@@ -116,30 +116,44 @@ update_app() {
 }
 
 show_menu() {
+  local state='Chưa cài đặt'
+  if app_installed; then
+    if service_active; then state='Đang chạy'; else state='Đang dừng'; fi
+  fi
+  printf '\n========== RICE REBORN ==========\nTrạng thái: %s\n' "${state}"
   cat <<'EOF'
-
-========== RICE REBORN ==========
-  1. Start backend / show web access
-  2. Update code + verified environment
-  3. Load preset VA (preserve capital / API / trades)
-  4. Install / check / repair environment
-  5. Diagnostics / logs / local data (read-only)
-  6. Stop backend
-  7. Restart backend (BOT starts OFF)
-  8. Status
-  9. Network access / Cloud Firewall info
-  B. Protected backup
-  P. Change administrator password
-  0. Exit
+  1. Cài đặt / mở Rice
+  2. Cập nhật bản mới
+  3. Xem trạng thái / lỗi
+  4. Cài đặt khác / bảo trì
+  0. Thoát menu (Rice vẫn chạy)
 ================================
 EOF
 }
 
+app_installed() { [[ -x "${APP_DIR}/.venv/bin/python" && -f "${UNIT_PATH}" ]]; }
+
+open_app() {
+  require_root
+  if app_installed; then service_command start
+  else
+    echo 'Lần đầu: tự cài Python, thư viện, bộ rule VA và service Rice.'
+    echo 'Khi được hỏi, đặt mật khẩu đăng nhập WEB RICE (riêng với mật khẩu SSH).'
+    install_or_clone
+  fi
+}
+
+quick_status() {
+  require_root
+  if ! app_installed; then echo 'Chưa cài Rice. Chọn 1 ở menu chính để bắt đầu.'; return 0; fi
+  systemctl status "${SERVICE_NAME}" --no-pager --full || true
+  echo '--- 60 dòng log gần nhất ---'
+  journalctl -u "${SERVICE_NAME}" -n 60 --no-pager
+}
+
 menu_action() {
   case "$1" in
-    1) echo start ;; 2) echo update ;; 3) echo preset-va ;; 4) echo environment ;;
-    5) echo diagnostics ;; 6) echo stop ;; 7) echo restart ;; 8) echo status ;;
-    9) echo network ;; b|B) echo backup ;; p|P) echo password ;; *) return 1 ;;
+    1) echo open ;; 2) echo update ;; 3) echo overview ;; 4) echo maintenance ;; *) return 1 ;;
   esac
 }
 
@@ -149,17 +163,45 @@ menu() {
   local choice action
   while true; do
     show_menu
-    if ! read -r -p 'Choose [0-9/B/P]: ' choice; then return 0; fi
+    if ! read -r -p 'Chọn [0-4]: ' choice; then return 0; fi
     [[ "${choice}" != 0 ]] || return 0
     if action="$(menu_action "${choice}")"; then
-      if run_menu_action "${action}"; then echo 'Done.'
-      else echo 'Failed. No automatic reset of account data.'; fi
-    else echo 'Invalid choice.'; fi
+      if run_menu_action "${action}"; then echo 'Hoàn tất.'
+      else echo 'Chưa hoàn tất. Xem lỗi phía trên hoặc chọn 3 để xem log. Dữ liệu tài khoản không bị reset.'; fi
+    else echo 'Vui lòng chọn từ 0 đến 4.'; fi
+  done
+}
+
+maintenance_menu() {
+  local choice action
+  while true; do
+    cat <<'EOF'
+
+========== CÀI ĐẶT / BẢO TRÌ ==========
+  1. Khởi động lại Rice (bot trở về TẮT)
+  2. Tắt Rice (dừng quét và thông báo)
+  3. Đổi mật khẩu đăng nhập web
+  4. Đổi cách truy cập: SSH tunnel / IP trực tiếp / HTTPS
+  5. Sao lưu dữ liệu và API
+  6. Nạp lại rule VA (giữ vốn, API, lịch sử giao dịch)
+  7. Kiểm tra môi trường / dữ liệu
+  8. Cài lại môi trường (giữ dữ liệu và API)
+  0. Quay lại
+======================================
+EOF
+    if ! read -r -p 'Chọn [0-8]: ' choice; then return 0; fi
+    case "${choice}" in
+      0) return 0 ;; 1) action=restart ;; 2) action=stop ;; 3) action=password ;;
+      4) action=network ;; 5) action=backup ;; 6) action=preset-va ;;
+      7) action=diagnostics ;; 8) action=bootstrap ;; *) echo 'Vui lòng chọn từ 0 đến 8.'; continue ;;
+    esac
+    if run_menu_action "${action}"; then echo 'Hoàn tất.'
+    else echo 'Chưa hoàn tất. Xem lỗi phía trên; dữ liệu tài khoản không bị reset.'; fi
   done
 }
 
 runtime() {
-  [[ -x "${APP_DIR}/.venv/bin/python" ]] || { echo 'Environment missing. Choose 4 > install / repair.' >&2; return 1; }
+  [[ -x "${APP_DIR}/.venv/bin/python" ]] || { echo 'Chưa có môi trường Rice. Chọn 1 ở menu chính để cài đặt.' >&2; return 1; }
   runuser -u "${APP_USER}" -- env RICE_HOME="${APP_DIR}" RICE_ENV_FILE="${APP_DIR}/data/.env" PYTHONDONTWRITEBYTECODE=1 \
     "${APP_DIR}/.venv/bin/python" -I -B "$@"
 }
@@ -184,7 +226,7 @@ with_stopped() {
 service_command() {
   require_root
   systemctl "$1" "${SERVICE_NAME}"
-  if [[ "$1" == start || "$1" == restart ]]; then echo 'Backend started. BOT starts OFF.'; show_access; fi
+  if [[ "$1" == start || "$1" == restart ]]; then echo 'Rice đã chạy. Khi khởi động mới, bot giao dịch mặc định TẮT.'; show_access; fi
 }
 
 check_environment() {
@@ -202,30 +244,34 @@ check_environment() {
 
 environment_menu() {
   local choice
-  echo '1. Read-only check'; echo '2. Install / repair packages'; echo '0. Back'
-  read -r -p 'Choose [0-2]: ' choice
+  echo '1. Kiểm tra (không thay đổi hệ thống)'; echo '2. Cài đặt / sửa môi trường'; echo '0. Quay lại'
+  read -r -p 'Chọn [0-2]: ' choice
   case "${choice}" in 1) bash "${SELF_PATH}" check ;; 2) bash "${SELF_PATH}" bootstrap ;; 0|'') return 0 ;; *) return 1 ;; esac
 }
 diagnostics_menu() {
   local choice
-  echo '1. Environment (read-only)'; echo '2. Logs'; echo '3. Local state (read-only)'; echo '4. Service sandbox assessment'; echo '0. Back'
-  read -r -p 'Choose [0-4]: ' choice
+  echo '1. Kiểm tra Python / thư viện'; echo '2. Xem trạng thái / log gần nhất'; echo '3. Kiểm tra database (chỉ đọc)'; echo '4. Kiểm tra cấu hình bảo vệ service'; echo '0. Quay lại'
+  read -r -p 'Chọn [0-4]: ' choice
   case "${choice}" in
-    1) bash "${SELF_PATH}" check ;; 2) bash "${SELF_PATH}" logs ;; 3) bash "${SELF_PATH}" state-check ;;
+    1) bash "${SELF_PATH}" check ;; 2) quick_status ;; 3) bash "${SELF_PATH}" state-check ;;
     4) systemd-analyze security --no-pager "${SERVICE_NAME}" ;; 0|'') return 0 ;; *) return 1 ;;
   esac
 }
 
 show_access() {
-  runtime -m rice_reborn.maintenance access-show
-  echo 'Binance API trusted IP is the VPS outbound IP, not the home browser IP.'
+  RICE_SSH_LOGIN="${SUDO_USER:-${USER:-root}}" RICE_SSH_CONNECTION="${SSH_CONNECTION:-}" runtime -m rice_reborn.maintenance access-show
+  echo 'Whitelist API trên Binance: dùng IP public đầu ra của VPS.'
+  echo 'API Binance, Telegram, vốn và rule chi tiết: nhập trong giao diện web.'
 }
 network_menu() {
   local choice mode allowed
   show_access
-  echo '1. Direct IP / HTTP (you manage firewall)'; echo '2. SSH tunnel / loopback'; echo '3. Existing HTTPS proxy / loopback'; echo '0. Back'
-  read -r -p 'Choose [0-3]: ' choice
-  case "${choice}" in 1) mode=direct ;; 2) mode=ssh ;; 3) mode=https ;; 0|'') return 0 ;; *) return 1 ;; esac
+  echo '1. SSH tunnel: chỉ cần mở cổng SSH, web giữ trong VPS'
+  echo '2. IP trực tiếp: mở cổng web, tự whitelist IP ở Cloud Firewall'
+  echo '3. HTTPS: dành cho VPS đã có reverse proxy và chứng chỉ'
+  echo '0. Quay lại'
+  read -r -p 'Chọn [0-3]: ' choice
+  case "${choice}" in 1) mode=ssh ;; 2) mode=direct ;; 3) mode=https ;; 0|'') return 0 ;; *) return 1 ;; esac
   allowed=''
   with_stopped access-set --mode "${mode}" --allow-ips "${allowed}"
   show_access
@@ -375,7 +421,8 @@ install_app() {
   activate_environment "${candidate}"
   install -m 0755 "${source_dir}/deploy/rice-reborn.sh" "${CONTROL_PATH}"
   printf '%s\n' "${source_dir}" >"${SOURCE_RECORD}"; chmod 0600 "${SOURCE_RECORD}"
-  echo '[OK] Installed. API/settings/data kept. Firewall, SSH, TLS and timezone unchanged.'
+  echo '[OK] Rice đã cài và chạy. Giữ nguyên API, cấu hình và dữ liệu.'
+  echo 'Không thay đổi firewall, cấu hình SSH hoặc múi giờ của VPS.'
   show_access
 }
 
@@ -383,7 +430,8 @@ main() {
   require_linux
   local action="${1:-menu}"
   case "${action}" in
-    menu) menu ;; bootstrap) install_or_clone ;; install|repair) install_app ;; update) update_app ;;
+    menu) menu ;; open) open_app ;; overview) quick_status ;; maintenance) require_root; maintenance_menu ;;
+    bootstrap) install_or_clone ;; install|repair) install_app ;; update) update_app ;;
     start|stop|restart) service_command "${action}" ;;
     status) require_root; systemctl status "${SERVICE_NAME}" --no-pager ;;
     logs) require_root; journalctl -u "${SERVICE_NAME}" -f ;;

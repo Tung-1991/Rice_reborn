@@ -25,7 +25,7 @@ Chạy với dữ liệu thật:
 
 Đăng nhập [localhost:8080](http://127.0.0.1:8080), mở **Kết nối**, nhập API key/secret và Telegram bot token/chat ID. Để trống các ô secret để giữ giá trị đã lưu. API Read không cần nâng quyền để nhận tín hiệu. Dữ liệu thị trường công khai hoạt động khi chưa có API tài khoản.
 
-## VPS Linux · IP:port
+## VPS Linux
 
 Ubuntu 24.04/26.04 hoặc AlmaLinux 9/10:
 
@@ -33,9 +33,11 @@ Ubuntu 24.04/26.04 hoặc AlmaLinux 9/10:
 sudo bash deploy/rice-reborn.sh
 ```
 
-Chọn mục 4 → 2 để cài đặt/sửa môi trường. Menu có các nhóm như launcher MayinTien: mở app, cập nhật, nạp VA, môi trường và chẩn đoán; thêm điều khiển service, backup và chế độ truy cập VPS. Script tạo user `rice`, dựng venv mới theo `requirements.lock`, kiểm tra import/package, yêu cầu mật khẩu rồi cài systemd. Mode `direct` mặc định bind `0.0.0.0:8080`; truy cập `http://<IP-VPS>:8080`.
+Chọn **1. Cài đặt / mở Rice**. Lần đầu script tự cài Python, thư viện, preset VA và systemd, hỏi mật khẩu đăng nhập web rồi khởi động Rice. Những lần sau mục 1 chỉ bật service và hiện hướng dẫn truy cập. Không tự bật bot giao dịch.
 
-**Firewall chỉ cho IP của người vận hành truy cập TCP 8080.** Script không tự thay firewall, whitelist hoặc SELinux. HTTP không mã hóa đường truyền; whitelist IP kiểm soát nguồn truy cập, không thay thế TLS. Có thể đặt reverse proxy HTTPS phía trước theo cấu hình hạ tầng riêng.
+Menu chính chỉ có **1 mở Rice, 2 cập nhật, 3 xem trạng thái/lỗi, 4 cài đặt khác/bảo trì**. Mục 4 chứa restart, tắt Rice, đổi mật khẩu web, đổi cách truy cập, backup, nạp VA, chẩn đoán và cài lại môi trường. Thoát menu không tắt Rice.
+
+Cài mới mặc định dùng **SSH tunnel**, web chỉ nghe `127.0.0.1:8080`. Script hiện lệnh chạy trên Windows và địa chỉ mở web `http://127.0.0.1:18080`; khi đang SSH, địa chỉ VPS, tài khoản và cổng SSH được điền từ phiên hiện tại. Cloud Firewall chỉ cần mở cổng SSH cho IP nhà, không mở public 8080. Script không tự thay firewall, SSH hoặc SELinux. Khi cập nhật, giữ nguyên mode truy cập đã lưu; đổi mode qua **4 → 4 → 1** nếu muốn dùng SSH tunnel.
 
 ```bash
 sudo rice-rebornctl start
@@ -60,7 +62,7 @@ sudo rice-rebornctl password
 
 ## Sử dụng
 
-Cách vận hành đã chốt: truy cập trực tiếp `http://IP-PUBLIC-VPS:8080`, Cloud Firewall chỉ cho IP public nhà người vận hành. Khi IP nhà đổi, cập nhật rule tại Cloud Firewall. Chạy `sudo rice-rebornctl access-set direct` để dùng mode này; để `RICE_ALLOWED_IPS=` trống, không duy trì thêm danh sách IP trong app. Script không tự sửa firewall. HTTP vẫn chưa mã hóa đường truyền. Chi tiết: [bảo mật triển khai](docs/SECURITY.md).
+Cách truy cập hiện tại dùng SSH tunnel: chọn mục 1 và làm theo lệnh Windows được hiện sau khi Rice chạy. Khi IP nhà đổi, cập nhật rule Cloud Firewall của cổng SSH. Binance API whitelist IP đầu ra của VPS. Chi tiết: [bảo mật triển khai](docs/SECURITY.md).
 
 - **REAL/PAPER:** đổi sổ để xem dữ liệu. Mỗi sổ có lệnh, vốn, vị thế, bộ nhớ EMA và khóa riêng. BOT OFF khi khởi động; chỉ một sổ bật tạo BUY mới cùng lúc.
 - **RULE:** chỉnh preset, mode realtime/nến đóng, nhịp quan sát, vốn USDT, P1, P2, WHIPSAW và khóa lỗ. Nạp lại VA chỉ đổi ngưỡng, không mang vốn/mã CKVN sang.

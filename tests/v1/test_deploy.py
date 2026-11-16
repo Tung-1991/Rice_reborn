@@ -14,11 +14,73 @@ def shell(code,workdir,input=None):
     return subprocess.run(['bash','-c','source '+shlex.quote(str(SCRIPT))+'\n'+code],cwd=workdir,text=True,capture_output=True,timeout=10,input=input)
 
 
-def test_launcher_syntax_and_original_menu_operations(tmp_path):
+def test_launcher_syntax_and_simple_menu_operations(tmp_path):
     result=subprocess.run(['bash','-n',str(SCRIPT)],capture_output=True,text=True)
     assert result.returncode==0,result.stderr
-    result=shell('for number in 1 2 3 4 5; do menu_action "$number"; done',tmp_path)
-    assert result.stdout.splitlines()==['start','update','preset-va','environment','diagnostics']
+    result=shell('for number in 1 2 3 4; do menu_action "$number"; done',tmp_path)
+    assert result.stdout.splitlines()==['open','update','overview','maintenance']
+
+
+@pytest.mark.parametrize('installed',[True,False])
+def test_open_installs_once_and_only_starts_existing_app(tmp_path,installed):
+    result=shell(f'''
+require_root() {{ :; }}
+app_installed() {{ return {0 if installed else 1}; }}
+install_or_clone() {{ echo INSTALL; }}
+service_command() {{ echo "SERVICE $1"; }}
+open_app
+''',tmp_path)
+    assert result.returncode==0,result.stderr
+    assert ('INSTALL' in result.stdout)==(not installed)
+    assert ('SERVICE start' in result.stdout)==installed
+
+
+def test_menu_navigation_password_and_exit_never_stop_backend(tmp_path):
+    result=shell('''
+require_root() { :; }
+app_installed() { return 1; }
+run_menu_action() {
+  if [[ "$1" == maintenance ]]; then maintenance_menu
+  else printf 'ACTION=%s\\n' "$1"; fi
+}
+menu
+''',tmp_path,input='4\n3\n0\n0\n')
+    assert result.returncode==0,result.stderr
+    assert 'ACTION=password' in result.stdout and 'ACTION=stop' not in result.stdout
+    assert 'Chưa cài đặt' in result.stdout and 'Rice vẫn chạy' in result.stdout
+
+
+def test_failed_action_reports_failure_and_keeps_menu_available(tmp_path):
+    result=shell('''
+require_root() { :; }
+app_installed() { return 1; }
+run_menu_action() { return 77; }
+menu
+''',tmp_path,input='1\n0\n')
+    assert result.returncode==0,result.stderr
+    assert 'Chưa hoàn tất.' in result.stdout and 'Hoàn tất.' not in result.stdout
+
+
+def test_status_before_install_does_not_query_or_change_service(tmp_path):
+    result=shell('''
+require_root() { :; }
+app_installed() { return 1; }
+systemctl() { exit 93; }
+journalctl() { exit 94; }
+quick_status
+''',tmp_path)
+    assert result.returncode==0 and 'Chưa cài Rice.' in result.stdout
+
+
+@pytest.mark.parametrize('choice,mode',[('1','ssh'),('2','direct'),('3','https')])
+def test_network_menu_changes_only_selected_access_mode(tmp_path,choice,mode):
+    result=shell('''
+show_access() { :; }
+with_stopped() { printf 'ACCESS=%s\\n' "$*"; }
+network_menu
+''',tmp_path,input=choice+'\n')
+    assert result.returncode==0,result.stderr
+    assert f'ACCESS=access-set --mode {mode} --allow-ips' in result.stdout
 
 
 def test_readonly_check_never_starts_service_or_installs(tmp_path):
